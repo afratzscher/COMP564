@@ -1,4 +1,3 @@
-###NOTE:: FIGURE OUT ERROR! -> MSE or truth **2 ?
 import sys, re
 from collections import Counter
 import math
@@ -153,7 +152,7 @@ k_values = [10, 50, 100, 1000, 10000]
 # os.system('RNAfold -p --MEA HW1Q3.fasta') # command to get dot.ps file
 for k in k_values:
     subopt_result_filepath = "subopt" + str(k) + ".txt"
-    dot_ps_filepath = "dot.ps"
+    dot_ps_filepath = "HW1Q3_dot.ps"
     command = 'RNAsubopt -p ' + str(k) + ' < HW1Q3.fasta > '+ subopt_result_filepath
     os.system(command)
 
@@ -168,4 +167,5 @@ for k in k_values:
 
     # solving question Q3_2
     q3_2_result = get_answer_Q3_2(q3_1_result, dot_ps_result)
+    os.remove(subopt_result_filepath)
     print('Error for k = ' + str(k) + ': ' + str(q3_2_result))

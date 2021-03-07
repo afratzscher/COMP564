@@ -1,4 +1,3 @@
-###NOTE:: FIGURE OUT ERROR! -> MSE or truth **2 ?
 import sys, re
 from collections import Counter
 import math
@@ -174,7 +173,7 @@ k_values = [10, 100, 1000, 10000]
 while (run <= 10):
     for k in k_values:
         subopt_result_filepath = "subopt" + str(k) + ".txt"
-        dot_ps_filepath = "dot.ps"
+        dot_ps_filepath = "HW1Q3_dot.ps"
         command = 'RNAsubopt -p ' + str(k) + ' < HW1Q3.fasta > '+ subopt_result_filepath
         os.system(command)
 
