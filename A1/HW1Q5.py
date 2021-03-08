@@ -1,12 +1,10 @@
-import random
 import os
 import subprocess
 import sys
 import math
 import matplotlib.pyplot as plt
+import numpy as np
 from collections import Counter
-
-#ISSUE: with population selection for next round 
 
 T1 = '((..(((.......))))).....(((......)))....'
 T2 = '(((((..(((((.(((((....))))))))))..))))).'
@@ -14,18 +12,20 @@ T3 = '((((((.((((....))))..((((....)))).))))))'
 N = 100 # size of population
 gens = 500 # number of generations
 
-test = '(((((((....))))..)))..((((....))))'
+test = '((((.((((....)))).((((....)))).))))'
 
+#CORRECT
 def generateNSeq(targetLen):
-	nts = ['A', 'C', 'G', 'U']
 	N_seqs = []
 	i = 0
 	while (i<N):
 		# equal probability to select A,C,G,U, so can use random
-		N_seqs.append(''.join(random.choices(nts, k=targetLen)))
+		N_seqs.append(''.join(np.random.choice(list('ACUG')) for _ in range(targetLen)))
 		i += 1
+
 	return N_seqs
 
+#CORRECT
 def getStructures(N_seqs):
 	structs = []
 	for seq in N_seqs: # run RNAfold to get MFE for all sequences
@@ -42,6 +42,7 @@ def getStructures(N_seqs):
 	del N_seqs
 	return structs
 
+#CORRECT
 def getDistance(structs, target):
 	distances = []
 	for struct in structs:
@@ -55,6 +56,7 @@ def getDistance(structs, target):
 	del structs
 	return distances
 
+#CORRECT
 def getReproductionRate(distances, L):
 	beta = 2/L
 	Z = sum([math.exp(-1 * beta * d) for d in distances])
@@ -62,27 +64,20 @@ def getReproductionRate(distances, L):
 		# rate high if distance low
 	return rate 
 
-def getProbs(N_seqs, rate, prob):
-	prob += [(N_seqs[i], rate[i]) for i in range(0, len(rate)) if (((N_seqs[i], rate[i]) not in prob) and rate[i] > 0.005)]
-	prob.sort(key=lambda tup: tup[1], reverse=True)  # sorts in place
-	if (len(prob) > 100):
-		prob = prob[:len(prob)-100]
-	return prob
-
-def getNextPop(prob, error_rate):
-	rounded = [round(y*N) for x,y in prob]
-	seqs = [x for x,y in prob]
-	temp = [x for x, number in zip(seqs, rounded) for _ in range(number)]
-	del seqs
+def getNextPop(N_seqs, rate, error_rate):
+	N_seqs = [x for _,x in sorted(zip(rate, N_seqs), reverse=True)]
+	rate = sorted(rate, reverse=True)
+	rounded = [round(x*N) for x in rate]
+	temp = [x for x, number in zip(N_seqs, rounded) for _ in range(number)]
 	N_seqs = []
 	for seq in temp:
 		while(len(N_seqs) < N):
 			new = ''
 			for i in range(len(seq)):
-				if (random.random() < error_rate): # mutation occurs
+				if (np.random.random() < error_rate): # mutation occurs
 					alphabet = ['A', 'C', 'G', 'U']
 					alphabet.remove(seq[i])
-					new += random.choice(alphabet)
+					new += np.random.choice(alphabet)
 				else:
 					new += seq[i]
 			N_seqs.append(new)
@@ -113,8 +108,8 @@ def main():
 		print('starting for ' + str(error_rate))
 		gen = 0 #reset generation
 		N_seqs = generateNSeq(len(target)) # first generation
-		prob = [] #no best probability initially
 		while (gen <= gens):
+			# print(gen)
 			if(gen%20 == 0):
 				print(gen)
 			structs = getStructures(N_seqs)
@@ -132,11 +127,9 @@ def main():
 			del structs #clearing memory
 			del hamming
 			rate = getReproductionRate(distances, len(target))
-			prob = getProbs(N_seqs, rate, prob)
 			del distances
-			del N_seqs
+			N_seqs = getNextPop(N_seqs, rate, error_rate)
 			del rate
-			N_seqs = getNextPop(prob, error_rate)
 			gen+=1
 		
 	plt.title('target = ' + str(target))
@@ -147,6 +140,7 @@ def main():
 	plt.plot(dist_high_mut, 'b.', label='u = 0.05')
 	plt.legend(loc="upper right")
 	plt.savefig('Average_distance.png')
+	plt.show()
 
 	plt.clf()
 	plt.title('target = ' + str(target))
@@ -157,7 +151,7 @@ def main():
 	plt.plot(hamm_high_mut, 'b.', label='u = 0.05')
 	plt.legend(loc="upper right")
 	plt.savefig('Hamming_distance.png')
-	plt.show()
+	# plt.show()
 
 if __name__ == '__main__':
 	main()
