@@ -10,7 +10,7 @@ T1 = '((..(((.......))))).....(((......)))....'
 T2 = '(((((..(((((.(((((....))))))))))..))))).'
 T3 = '((((((.((((....))))..((((....)))).))))))'
 N = 100 # size of population
-gens = 500 # number of generations
+gens = 10 # number of generations
 
 test = '((((.((((....)))).((((....)))).))))'
 
@@ -139,7 +139,7 @@ def main():
 	plt.plot(dist_mid_mut, 'r.', label='u = 0.02')
 	plt.plot(dist_high_mut, 'b.', label='u = 0.05')
 	plt.legend(loc="upper right")
-	plt.savefig('Average_distance.png')
+	plt.savefig('old_bp.png')
 	plt.show()
 
 	plt.clf()
@@ -150,7 +150,7 @@ def main():
 	plt.plot(hamm_mid_mut, 'r.', label='u = 0.02')
 	plt.plot(hamm_high_mut, 'b.', label='u = 0.05')
 	plt.legend(loc="upper right")
-	plt.savefig('Hamming_distance.png')
+	plt.savefig('old_Hamming_distance.png')
 	# plt.show()
 
 if __name__ == '__main__':
