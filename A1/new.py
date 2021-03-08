@@ -64,7 +64,9 @@ def mutate(seq, mutation_rate):
 	for bp in seq:
 		r = random.random()
 		if r < mutation_rate:
-			new = new + random.choice("ACUG")
+			alphabet = ['A', 'C', 'G', 'U']
+			alphabet.remove(bp)
+			new = new + random.choice(alphabet)
 			mutated=True
 		else:
 			new = new + bp # no change
