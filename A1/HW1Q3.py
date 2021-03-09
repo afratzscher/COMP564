@@ -1,7 +1,7 @@
 import sys, re
 from collections import Counter
 import math
-import os 
+import os
 # ============================================ Student info methods================================================
 def get_student_name():
     # @TO_STUDENT: Write your name here
@@ -93,10 +93,10 @@ def get_answer_Q3_1(subopt_result):
     validate_Q3_1_input_format(subopt_result)
     # @TO_STUDENT: Write your code here
     # @TO_STUDENT: use result variable for results. below is an example of an expected format for result.
-   
+
     result = []
     stack = []
-    pairs = []    
+    pairs = []
 
     # file already read by parse_subopt_result_file -> each secondary struct. given as string in subopt_resultsc
     for substr in subopt_result:
@@ -106,7 +106,7 @@ def get_answer_Q3_1(subopt_result):
                 stack.append(idx)
             elif x == ')':
                 temp = stack.pop()
-                pairs.append(tuple([temp+1,idx+1])) # store as tuple so that can use Counter 
+                pairs.append(tuple([temp+1,idx+1])) # store as tuple so that can use Counter
                 # index adjusted so that 1st nucleotide = idx 1
             else:
                 continue
@@ -149,10 +149,10 @@ print("This is a solution of %s, student_id is %s" % (get_student_name(), get_st
 k_values = [10, 50, 100, 1000, 10000]
 # run for k = 50, 100, 1000, and 10000 secondary structures
 
-# os.system('RNAfold -p --MEA HW1Q3.fasta') # command to get dot.ps file
+os.system('RNAfold -p --MEA HW1Q3.fasta >/dev/null 2>&1') # command to get dot.ps file
 for k in k_values:
     subopt_result_filepath = "subopt" + str(k) + ".txt"
-    dot_ps_filepath = "HW1Q3_dot.ps"
+    dot_ps_filepath = "dot.ps"
     command = 'RNAsubopt -p ' + str(k) + ' < HW1Q3.fasta > '+ subopt_result_filepath
     os.system(command)
 
@@ -169,3 +169,5 @@ for k in k_values:
     q3_2_result = get_answer_Q3_2(q3_1_result, dot_ps_result)
     os.remove(subopt_result_filepath)
     print('Error for k = ' + str(k) + ': ' + str(q3_2_result))
+os.remove(dot_ps_filepath)
+os.remove('rna.ps')

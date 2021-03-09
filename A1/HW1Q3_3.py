@@ -2,7 +2,7 @@ import sys, re
 from collections import Counter
 import math
 import os
-from tabulate import tabulate
+import matplotlib.pyplot as plt
 from statistics import mean, stdev
 # ============================================ Student info methods================================================
 def get_student_name():
@@ -165,15 +165,17 @@ print("This is a solution of %s, student_id is %s" % (get_student_name(), get_st
 
 run = 1
 val_10 = []
+val_50 = []
 val_100 = []
 val_1000 = []
 val_10000 = []
-k_values = [10, 100, 1000, 10000]
+k_values = [10, 50, 100, 1000, 10000]
 
+os.system('RNAfold -p --MEA HW1Q3.fasta >/dev/null 2>&1') # command to get dot.ps file
 while (run <= 10):
     for k in k_values:
         subopt_result_filepath = "subopt" + str(k) + ".txt"
-        dot_ps_filepath = "HW1Q3_dot.ps"
+        dot_ps_filepath = "dot.ps"
         command = 'RNAsubopt -p ' + str(k) + ' < HW1Q3.fasta > '+ subopt_result_filepath
         os.system(command)
 
@@ -183,6 +185,8 @@ while (run <= 10):
         q3_2_result = get_answer_Q3_2(q3_1_result, dot_ps_result)
         if k == 10:
             val_10.append(q3_2_result)
+        elif k == 50:
+            val_50.append(q3_2_result)
         elif k == 100:
             val_100.append(q3_2_result)
         elif k == 1000:
@@ -191,12 +195,14 @@ while (run <= 10):
             val_10000.append(q3_2_result)
         os.remove(subopt_result_filepath)
     run+=1
+os.remove(dot_ps_filepath)
+os.remove('rna.ps')
 
-print('Run             k=10                     k=100                         k=1000                    k=10000')
+print('Run             k=10                     k=50                    k=100                         k=1000                    k=10000')
 run = 1
 while (run <= 10):
-    print(str(run) + '       ' + str(val_10[run-1]) + '         ' + str(val_100[run-1]) + '          ' + str(val_1000[run-1]) + '         ' +       str(val_10000[run-1]))
+    print(str(run) + '       ' + str(val_10[run-1]) + '       ' + str(val_50[run-1]) + '         ' + str(val_100[run-1]) + '          ' + str(val_1000[run-1]) + '         ' +       str(val_10000[run-1]))
     run+=1
 
-print('mean     ' + str(mean(val_10)) + '       ' + str(mean(val_100)) + '       ' + str(mean(val_1000)) + '        ' + str(mean(val_10000)))
-print('stdev     ' + str(stdev(val_10)) + '       ' + str(stdev(val_100)) + '       ' + str(stdev(val_1000)) + '        ' + str(stdev(val_10000)))
+print('mean     ' + str(mean(val_10)) + '       ' + str(mean(val_50)) + '       ' + str(mean(val_100)) + '       ' + str(mean(val_1000)) + '        ' + str(mean(val_10000)))
+print('stdev     ' + str(stdev(val_10)) + '       ' + str(stdev(val_50)) + '       ' + str(stdev(val_100)) + '       ' + str(stdev(val_1000)) + '        ' + str(stdev(val_10000)))

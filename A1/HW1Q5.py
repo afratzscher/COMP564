@@ -3,155 +3,158 @@ import subprocess
 import sys
 import math
 import matplotlib.pyplot as plt
-import numpy as np
 from collections import Counter
+import numpy as np
+import random
 
 T1 = '((..(((.......))))).....(((......)))....'
 T2 = '(((((..(((((.(((((....))))))))))..))))).'
 T3 = '((((((.((((....))))..((((....)))).))))))'
-N = 100 # size of population
-gens = 500 # number of generations
-
 test = '((((.((((....)))).((((....)))).))))'
+N = 100 # size of population # SHOULD BE 100
+generations = 500 # number of generations SHOULD BE 500
 
-#CORRECT
-def generateNSeq(targetLen):
-	N_seqs = []
-	i = 0
-	while (i<N):
-		# equal probability to select A,C,G,U, so can use random
-		N_seqs.append(''.join(np.random.choice(list('ACUG')) for _ in range(targetLen)))
-		i += 1
+# use class instead of list for easier management
+class Individual:
+	def __init__(self, seq, struct):
+		self.seq = seq
+		self.struct = struct
 
-	return N_seqs
-
-#CORRECT
-def getStructures(N_seqs):
-	structs = []
-	for seq in N_seqs: # run RNAfold to get MFE for all sequences
+def getPop(targetLen):
+	pop = []
+	for i in range(N): # size of pop = N (100)
+		seq = ''.join([random.choice("ACUG") for _ in range(targetLen)])
 		p1 = subprocess.Popen(["printf", seq], stdout=subprocess.PIPE)
 		p2 = subprocess.Popen(["RNAfold"], stdin=p1.stdout, stdout=subprocess.PIPE)
 		to_parse = str(p2.communicate()[0])
 		p1.stdout.close()
 		p2.stdout.close()
-		structs.append(to_parse[4+len(N_seqs[0]):to_parse.find(' ')])
-		del to_parse
-			#first 2 chars = b', then have seq, then have \\n before start
-			# use to_parse.find(' ') b/c formatted as (...)(..)_(value)  (space before '(value)', so can find ' ''
+		struct = to_parse[4+targetLen:to_parse.find(' ')]
+		new_indi = Individual(seq, struct)
+		new_indi.id = i
+		pop.append(new_indi)
 	os.remove('rna.ps')
-	del N_seqs
-	return structs
+	return pop
 
-#CORRECT
-def getDistance(structs, target):
-	distances = []
-	for struct in structs:
-		p1 = subprocess.Popen(["printf", struct+'\\n'+target], stdout=subprocess.PIPE)
+def getFitness(pop, target):
+	beta = 2/len(target)
+	dist_list = [] #total fitness
+	for cell in pop:
+		p1 = subprocess.Popen(["printf", cell.struct+'\\n'+target], stdout=subprocess.PIPE)
 		p2 = subprocess.Popen(["RNAdistance", "--distance=P"], stdin=p1.stdout, stdout=subprocess.PIPE)
 		p1.stdout.close()
 		string_to_parse = str(p2.communicate()[0])
 		p2.stdout.close()
-		distances.append(int(string_to_parse[string_to_parse.find(':')+2:string_to_parse.rfind(' ')-1]))
-		del string_to_parse
-	del structs
-	return distances
+		d = int(string_to_parse[string_to_parse.find(':')+2:string_to_parse.rfind(' ')-1])
+		cell.fitness = math.exp((-1 * beta * d))
+		cell.bp_dist = d
+		dist_list.append(cell.fitness)
+		cell.hamming_dist = sum(c1 != c2 for c1, c2 in zip(cell.struct, target)) #hamming distance
+		
+	Z = np.sum(dist_list)
 
-#CORRECT
-def getReproductionRate(distances, L):
-	beta = 2/L
-	Z = sum([math.exp(-1 * beta * d) for d in distances])
-	rate = [math.exp(-1*beta*d)/Z for d in distances]
-		# rate high if distance low
-	return rate 
+	for cell in pop:
+		cell.fitness = cell.fitness/ Z
 
-def getNextPop(N_seqs, rate, error_rate):
-	N_seqs = [x for _,x in sorted(zip(rate, N_seqs), reverse=True)]
-	rate = sorted(rate, reverse=True)
-	rounded = [round(x*N) for x in rate]
-	temp = [x for x, number in zip(N_seqs, rounded) for _ in range(number)]
-	N_seqs = []
-	for seq in temp:
-		while(len(N_seqs) < N):
-			new = ''
-			for i in range(len(seq)):
-				if (np.random.random() < error_rate): # mutation occurs
-					alphabet = ['A', 'C', 'G', 'U']
-					alphabet.remove(seq[i])
-					new += np.random.choice(alphabet)
-				else:
-					new += seq[i]
-			N_seqs.append(new)
-	del temp
-	del rounded
-	return N_seqs
+	return pop
 
-def getHammingDistance(structs, target):
-	distances = []
-	for struct in structs:
-		distances.append(sum(c1 != c2 for c1, c2 in zip(struct, target)))
-	avg = sum(distances)/N
-	del distances
-	del structs
-	return avg
+def mutate(seq, mutation_rate):
+	new = ''
+	mutated = False #check if mutated (to see if need to get struct again)
+	for bp in seq:
+		r = random.random()
+		if r < mutation_rate:
+			alphabet = ['A', 'C', 'G', 'U']
+			alphabet.remove(bp)
+			new = new + random.choice(alphabet)
+			mutated=True
+		else:
+			new = new + bp # no change
+	return(new, mutated)
+
+def selection(pop, target, mutation_rate):
+	parents = np.random.choice(pop, len(pop), p=[rna.fitness for rna in pop], replace=True)
+
+	next_gen = []
+	for i,p in enumerate(parents):
+		new = Individual(p.seq, p.struct)
+		new.id = i
+		next_gen.append(new)
+
+	#add mutations
+	for rna in next_gen:
+		mut_seq, mutated = mutate(rna.seq, mutation_rate)
+		if mutated:
+			rna.seq = mut_seq
+			p1 = subprocess.Popen(["printf", mut_seq], stdout=subprocess.PIPE)
+			p2 = subprocess.Popen(["RNAfold"], stdin=p1.stdout, stdout=subprocess.PIPE)
+			to_parse = str(p2.communicate()[0])
+			p1.stdout.close()
+			p2.stdout.close()
+			rna.struct = to_parse[4+len(target):to_parse.find(' ')]
+		else:
+			continue
+
+	#update fitness
+	getFitness(next_gen, target)
+	return next_gen
+
+def recordStats(pop, pop_stats):
+	gen_bp_dist = [rna.bp_dist for rna in pop]
+	gen_hamming_dist = [rna.hamming_dist for rna in pop]
+	mean_bp_dist = np.mean(gen_bp_dist)
+	mean_hamming_dist = np.mean(gen_hamming_dist)
+
+	pop_stats.setdefault('mean_bp_dist', []).append(mean_bp_dist)
+	pop_stats.setdefault('mean_hamming_dist', []).append(mean_hamming_dist)
+	return None
+
+def evolve(target, mutation_rate):
+	pop_stats = {} #holds stats
+
+	#for initial population
+	initial_pop = getPop(len(target))
+	getFitness(initial_pop, target)
+	curr_gen = initial_pop
+
+	#run for 500 generations
+	for i in range(generations):
+		if(i%20 == 0):
+				print(i)
+		#record stats
+		recordStats(curr_gen, pop_stats)
+		#get next generation
+		new_gen = selection(curr_gen, target, mutation_rate=mutation_rate)
+		curr_gen = new_gen
+	return pop_stats # return stats
 
 def main():
-	target = test #declare target (T1, T2, T3)
+	target = T3 # change target here (T1, T2, or T3) 
+	mutation_rate = [0.01, 0.02, 0.05]
+	all_stats = {}
+	for m in mutation_rate:
+		stats = evolve(target, m)
+		all_stats[m] = stats
 
-	dist_low_mut = []
-	dist_mid_mut = []
-	dist_high_mut = []
-	hamm_low_mut = []
-	hamm_mid_mut = []
-	hamm_high_mut = []
-
-	for error_rate in [0.01, 0.02, 0.05]:
-		print('starting for ' + str(error_rate))
-		gen = 0 #reset generation
-		N_seqs = generateNSeq(len(target)) # first generation
-		while (gen <= gens):
-			# print(gen)
-			if(gen%20 == 0):
-				print(gen)
-			structs = getStructures(N_seqs)
-			distances = getDistance(structs, target)
-			hamming = getHammingDistance(structs, target)
-			if error_rate == 0.01:
-				dist_low_mut.append(sum(distances)/N)
-				hamm_low_mut.append(hamming)
-			elif error_rate == 0.02:
-				dist_mid_mut.append(sum(distances)/N)
-				hamm_mid_mut.append(hamming)
-			elif error_rate == 0.05:
-				dist_high_mut.append(sum(distances)/N)
-				hamm_high_mut.append(hamming)
-			del structs #clearing memory
-			del hamming
-			rate = getReproductionRate(distances, len(target))
-			del distances
-			N_seqs = getNextPop(N_seqs, rate, error_rate)
-			del rate
-			gen+=1
-		
 	plt.title('target = ' + str(target))
 	plt.xlabel('Generations')
-	plt.ylabel('Average distance')
-	plt.plot(dist_low_mut, 'y.', label='u = 0.01')
-	plt.plot(dist_mid_mut, 'r.', label='u = 0.02')
-	plt.plot(dist_high_mut, 'b.', label='u = 0.05')
+	plt.ylabel('Average base pair distance')
+
+	plt.plot(all_stats[0.01]['mean_bp_dist'], 'y.', label='u = 0.01')
+	plt.plot(all_stats[0.02]['mean_bp_dist'], 'r.', label='u = 0.02')
+	plt.plot(all_stats[0.05]['mean_bp_dist'], 'b.', label='u = 0.05')
 	plt.legend(loc="upper right")
-	plt.savefig('old_bp.png')
-	plt.show()
+	plt.savefig('T3_BP_distance.png')
 
 	plt.clf()
 	plt.title('target = ' + str(target))
 	plt.xlabel('Generations')
 	plt.ylabel('Average hamming distance')
-	plt.plot(hamm_low_mut, 'y.', label='u = 0.01')
-	plt.plot(hamm_mid_mut, 'r.', label='u = 0.02')
-	plt.plot(hamm_high_mut, 'b.', label='u = 0.05')
+	plt.plot(all_stats[0.01]['mean_hamming_dist'], 'y.', label='u = 0.01')
+	plt.plot(all_stats[0.02]['mean_hamming_dist'], 'r.', label='u = 0.02')
+	plt.plot(all_stats[0.05]['mean_hamming_dist'], 'b.', label='u = 0.05')
 	plt.legend(loc="upper right")
-	plt.savefig('old_Hamming_distance.png')
-	# plt.show()
+	plt.savefig('T3_Hamming_distance.png')
 
 if __name__ == '__main__':
 	main()
