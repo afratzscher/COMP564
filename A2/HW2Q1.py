@@ -3,6 +3,7 @@ from Bio.SeqRecord import SeqRecord
 # from Bio.Alphabet import IUPAC
 from Bio import SeqIO
 from Bio import PDB
+from Bio.PDB.DSSP import make_dssp_dict
 import pickle
 import os
 import sys
@@ -10,6 +11,7 @@ import warnings
 import numpy
 import subprocess
 import collections
+import pandas as pd
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
@@ -58,22 +60,80 @@ def extract_residues(model):
             residues.append(residue)
     return residues
 
-#DONE
+#DONE -> FIXED CHAIN ISSUE!
 def get_dssp_info(PDB_file,model,dir):
     """Runs DSSP on protein input"""
     #DONE : you can run DSSP through biopython. The output contains a lot of useful information.
     #Tip : make sure your secondary structure indexing matches the sequence order in the PDB file!
-    return PDB.DSSP(model, dir + '/' + PDB_file, dssp='mkdssp') 
+    '''Had issues using DSSP through biopython -> mainly issue with chains needing to be in 
+    alphabetical order (A,B,C) with no letters in between...'''
+    #removes non-standard residues (not amino acids)
+    # to_remove = {}
+    # for chain in model:
+    #     temp = []
+    #     for residue in chain:
+    #         if not (PDB.is_aa(residue, standard=True)):
+    #             temp.append(residue.id)
+    #     to_remove[chain] = temp
+    # for chain in model:
+    #     print(chain)
+    #     for residue in list(to_remove[chain]):
+    #         chain.detach_child(residue)
+    #         print(residue)
 
+    # i=0
+    # for chain in model:
+    #     for residue in chain:
+    #         i+=1
+    # print(i)
+
+    cmd = 'mkdssp -i' + dir + '/' + PDB_file + ' -o temp.dssp'
+    stream = os.popen(cmd)
+
+    dssp = make_dssp_dict("temp.dssp")
+    return dssp[0]
+
+    # #renames chains (otherwise, if A,B,D, get error saying "no chain C" b/c iterates alphabetically)
+    # try:
+    #     return PDB.DSSP(model, dir + '/' + PDB_file, dssp = 'mkdssp')
+    # except:
+    #     ch=1
+    #     tryagain = False
+    #     keeptrying = True
+    #     for chain in model:
+    #         chain.id = ch
+    #         ch += 1
+
+    #     ch = 'A'
+    #     for chain in model:
+    #         chain.id = ch
+    #         ch = chr(ord(ch) + 1)
+    #     print(model.child_list)
+    
+    #     to_remove = []
+    #     for chain in model:
+    #         for residue in chain:
+    #             if not(PDB.is_aa(residue, standard=True)):
+    #                 to_remove.append(residue.id[1])
+
+    #     return PDB.DSSP(model, dir + '/' + PDB_file, dssp = 'mkdssp')
+
+
+#DONE
 def write_fasta(sequence,PDB_file):
     """Writes sequence to fasta file named after the PDB the sequence comes from"""
 
-    ########################################################################################
-    #TODO : implement the writing of a fasta file from the sequence obtained from the PDB file.
-
+   #TODO : implement the writing of a fasta file from the sequence obtained from the PDB file.
+    dir = os.getcwd() + '/data/fasta/'
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+    pdbfilename = PDB_file[:-4]
+    filename = dir + pdbfilename + '.fasta'
+    f = open(filename, "a")
+    f.write(">"+pdbfilename+'\n'+str(sequence))
+    f.close()
     #return the name of the file.
-    ########################################################################################
-    return ""
+    return filename
 
 def run_tmhmm(filename):
     """Runs tmhmm on input fasta files, sends the output to STDout, processes output into secondary structure"""
@@ -127,15 +187,16 @@ def get_PDB_info(dir):
     for ind,PDB_file in enumerate(os.listdir(dir)):
         if ind%10==0:
             print("Working on structure",ind)
-
+        print(PDB_file)
         #Step 1 : parse your PDB file with biopython to obtain a model object
         p = PDB.FastMMCIFParser()
         path = os.path.join(dir, PDB_file)
         structure = p.get_structure(PDB_file[:-4].upper(), path)
         model = structure[0]
-
+        print(model.child_list)
         #DONE : extract a list of residues from your model object
         residues = extract_residues(model)
+        print(len(residues))
 
         #DONE : compute a distance matrix of size len(sequence)*len(sequence) with the distance between each residue
         matrix = compute_distance_matrix(residues)
@@ -150,18 +211,41 @@ def get_PDB_info(dir):
         #DONE : contact info should return the proportion of residues that have an intramolecular contact in your object.
         contact_info = get_contact_numbers(contact_map)
         # print(contact_info,"contacts")
-       
+        
+        # print(model.child_list)
         #DONE : obtain the secondary structure prediction of the PDB model with DSSP
         dssp_info = get_dssp_info(PDB_file,model,dir)
         
-        ########################################################################################
-        #TODO : obtain the sequence of the PDB file in some way of your choice.
+        #DONE : obtain the sequence of the PDB file in some way of your choice.
         sequence = ""
         dssp_ss = "" #ss stands for secondary structure
+
+        # get sequence from structure (called model)
+        ppb = PDB.PPBuilder()
+        for pp in ppb.build_peptides(model):
+            sequence+=(pp.get_sequence())
+       
+        # get dssp secondary structure (if using biopython)
+        # for aa in sorted(dssp_info.keys()):
+        #     ss = dssp_info[aa][2]
+        #     # H = G is 3-turn, H = 4-turn, I = 5-turn helix
+        #     if (ss in ['H', 'G', 'I']):
+        #         dssp_ss+="H"
+        #     #everything that isnt a helix is considered a coil...
+        #     else:
+        #         dssp_ss+="C"
+
+        # get dssp secondary structure (if using command line call)
+        for key in dssp_info:
+            ss = dssp_info.get(key)[1]
+            if (ss in ['H', 'G', 'I']):
+                dssp_ss+="H"
+            #everything that isnt a helix is considered a coil...
+            else:
+                dssp_ss+="C"
+
         ########################################################################################
-        
-        ########################################################################################
-        #TODO : write the sequence to a fasta file to call TMHMM with it, or to use the webserver
+        #DONE : write the sequence to a fasta file to call TMHMM with it, or to use the webserver
         filename = write_fasta(sequence,PDB_file)
         ########################################################################################
 
@@ -173,13 +257,12 @@ def get_PDB_info(dir):
         DSSP_vector, TMHMM_vector, oracle = generate_ML_dataset(sequence,dssp_ss,tm_ss,has_contact,DSSP_vector, TMHMM_vector, oracle)
     return DSSP_vector, TMHMM_vector, oracle
 
+#DONE
 def generate_dataset():
     """Runs the PDB parsing utility"""
     DSSP_vector, TMHMM_vector, oracle = get_PDB_info(os.path.join("data","pdb"))
     print("successfully parsed PDB data")
     
-    
-
     #store a pickle of your results to avoid repeating get_PDB_info
     pickle.dump((DSSP_vector, TMHMM_vector, oracle),open("ML_ready_dataset.pickle","wb"))
     return DSSP_vector, TMHMM_vector, oracle
@@ -299,6 +382,7 @@ def predict_intramolecular_contacts(dataset):
     #TODO : analyze your results!
     ########################################################################################
 
+#DONE
 def get_data():
     L = ["1D6G", "1FJR", "1MF6", "1NZS", "1WSO", "1Y7J", "1YM7", "1YTV", "2DCO", "2JX0", "2JX4", "2JX9", "2K3U", "2K9P", "2KI9", "2KOE", "2L60", "2L63", "2LMK", "2LNL", "2LQ4", "2M9O", "2N2F", "2N55", "2NZ1", "2O8Z", "2QKH", "2RGN", "2RH1", "2RRS", "2X57", "2XVT", "2XWT", "2Y00", "2YDV", "2YX8", "3EML", "3H3G", "3I8S", "3N7S", "3N93", "3NKQ", "3ODU", "3PBL", "3RZE",
 "3T33", "3UGU", "3UON", "3V2Y", "4DJH", "4DLO", "4DLQ", "4EIY", "4I6O", "4IAR", "4IB4", "4JKV", "4JQI", "4K5Y", "4L6R", "4MBS", "4MQW", "4N6H", "4NUU", "4OR2", "4P39", "4P3A", "4PNI", "4PXZ", "4QIM", "4R7V", "4R7X", "4RMK", "4TND", "4U14", "4U15", "4X1H", "4XES", "4XNV", "4XT1", "4Z35", "4ZUD", "5CXV", "5DHG", "5DSG", "5EE7", "5FTT", "5KVM", "5KZZ", "5NDD", "5NX2", "5O9H", "5OLL", "5OTU", "5T04", "5T1A", "5UEN", "5UNF", "5V57", "5VBL", "5VEW",
@@ -307,13 +391,13 @@ def get_data():
     pdbl = PDB.PDBList(verbose=False)
 
     for pdb in L:
-        print(pdb)
         path_name = pdbl.retrieve_pdb_file(pdb, pdir='data/pdb/', file_format="mmCif")
+    print("DONE")
 
 if __name__== "__main__":
     """executes program. If you already have a dataset, you can load it via pickle"""
 
-    # get_data() # used to retrieve sequences b/c advanced PDB search not currently working...
+    get_data() # used to retrieve sequences b/c advanced PDB search not currently working...
 
     ########################################################################################
     # TODO : follow the instructions in get_PDB_info()
