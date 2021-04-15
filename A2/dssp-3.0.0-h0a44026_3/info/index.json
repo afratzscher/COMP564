@@ -1,0 +1,17 @@
+{
+  "arch": "x86_64",
+  "build": "h0a44026_3",
+  "build_number": 3,
+  "depends": [
+    "bzip2 1.0.8.*",
+    "libboost 1.67.0.*",
+    "libcxx >=4.0.1",
+    "zlib 1.2.11.*"
+  ],
+  "license": "Boost",
+  "name": "dssp",
+  "platform": "osx",
+  "subdir": "osx-64",
+  "timestamp": 1580755625214,
+  "version": "3.0.0"
+}
