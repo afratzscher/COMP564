@@ -172,12 +172,10 @@ def write_fasta(sequence,PDB_file):
     # return filename
     return PDB_file[:-4]
 
+#DONE
 def run_tmhmm(pdb_file, filename):
     """Runs tmhmm on input fasta files, sends the output to STDout, processes output into secondary structure"""
-
-    ########################################################################################
     #TODO : run TMHMM and output its resulting secondary structure.
-    ########################################################################################
     #If you cannot get tmhmm to run, you can write all your sequences to a FASTA file,
     # use the webserver and parse the output file with this function. Otherwise, you can use this function to run
     #TMHMM on some FASTA file and parse its output.
@@ -231,7 +229,22 @@ def generate_ML_dataset(sequence,dssp_ss,tm_ss,has_contact,DSSP_vector, TMHMM_ve
 
     #return the three vectors after appending the new elements.
     ########################################################################################
+    sequence = str(sequence)
+    seq_nine = list(split_by_n(sequence, 9))
+    tm_nine = list(split_by_n(tm_ss, 9))
+    dssp_nine = list(split_by_n(dssp_ss, 9))
+
+    for i in enumerate(seq_nine):
+        if(len(seq_nine[i[0]]) < 9): continue
+        DSSP_vector.append(zip(seq_nine[i[0]], dssp_nine[i[0]]))
+        TMHMM_vector.append(zip(seq_nine[i[0]], tm_nine[i[0]]))
     return DSSP_vector, TMHMM_vector, oracle
+
+def split_by_n(seq, n):
+    '''A generator to divide a sequence into chunks of n units.'''
+    while seq:
+        yield seq[:n]
+        seq = seq[n:]
 
 ###WORKING ON THIS!
 def get_PDB_info(dir):
@@ -322,16 +335,129 @@ def generate_dataset():
     pickle.dump((DSSP_vector, TMHMM_vector, oracle),open("ML_ready_dataset.pickle","wb"))
     return DSSP_vector, TMHMM_vector, oracle
 
+# def split_dataset(X, Y):
+#     """Splits the dataset into training and testing"""
+#     ########################################################################################
+#     # TODO : split the X and Y dataset into a reasonable training set and a test set. Your test set should have have 20% of the datapoints.
+#     ########################################################################################
+#     # Tip : look up train_test_split with scikit-learn
+
+#     X_train, X_test, Y_train, Y_test = np.array([1]), np.array([1]), np.array([1]), np.array([1])
+
+#     return X_train, X_test, Y_train, Y_test
+
+# def format_simple_dataset(vector,solutions):
+#     """takes as input a vector of sequence strings and a vector of booleans
+#     outputs a vector of size 9 vectors of tuples and an array of binary numbers"""
+
+#     AA = ["G", "A", "L", "M", "F", "W", "K", "Q", "E", "S", "P", "V", "I", "C", "Y", "H", "R", "N", "D", "T", "X"]
+#     contact_truth = [False, True]
+
+#     training_size = len(vector)
+#     formatted_X = []
+#     for i in vector[:training_size]:
+#         current_vec = np.zeros(189)
+#         for ind, j in enumerate(i):
+#             nuc = AA.index(j[0])
+#             current_vec[21 * ind + nuc] = 1
+#         current_vec = np.array(current_vec)
+#         formatted_X.append(current_vec)
+#     X = np.array(formatted_X)
+#     formatted_Y = np.zeros(training_size)
+#     for i in range(training_size):
+#         formatted_Y[i] = contact_truth.index(solutions[i])
+#     Y = np.array(formatted_Y)
+#     return X,Y
+
+# def format_one_hot_dataset(vector,solutions):
+#     """Takes as input a vector of 9 sequence, ss tuples, outputs a vector of one-hot vectors of size 198 and a binary vector"""
+#     AA = ["G", "A", "L", "M", "F", "W", "K", "Q", "E", "S", "P", "V", "I", "C", "Y", "H", "R", "N", "D", "T", "X"]
+#     ss = ["H", "C"]
+#     contact_truth = [False, True]
+
+#     training_size = len(vector)
+#     formatted_X = []
+#     for i in vector[:training_size]:
+#         current_vec = np.zeros(198)
+#         for ind, j in enumerate(i):
+#             nuc = AA.index(j[0])
+#             sec = ss.index(j[1])
+#             current_vec[22 * ind + nuc] = 1
+#             current_vec[22 * ind + 21] = sec
+#         current_vec = np.array(current_vec)
+#         formatted_X.append(current_vec)
+#     X = np.array(formatted_X)
+#     formatted_Y = np.zeros(training_size)
+#     for i in range(training_size):
+#         formatted_Y[i] = contact_truth.index(solutions[i])
+#     Y = np.array(formatted_Y)
+#     return X,Y
+
+# def run_NN_on_sequence(vector, solutions):
+#     """Trains a scikit-learn basic 3 layers neural network on a sequence vector, outputs results"""
+
+#     #X is a the input vector of ML-ready numpy arrays, Y is the corresponding oracle
+#     X, Y = format_simple_dataset(vector, solutions)
+
+#     ########################################################################################
+#     #TODO : fill in split_dataset
+#     X_train, X_test, Y_train, Y_test = split_dataset(X,Y)
+#     ########################################################################################
+
+
+#     clf = MLPClassifier(solver='sgd', alpha=1e-6, hidden_layer_sizes=(156), activation="logistic", shuffle=True,
+#                         verbose=False, random_state=1, tol=1e-5, max_iter=350)
+#     clf.fit(X_train, Y_train)
+#     print("score, sequence only")
+#     print("TRAINING ACCURACY", clf.score(X_train, Y_train))
+#     print("TEST ACCURACY", clf.score(X_test, Y_test))
+
+# def run_NN_for_ss_type(vector,solutions):
+#     """Trains a scikit-learn basic 3 layers neural network on a sequence-structure vector, outputs results"""
+
+
+#     #X is a the input vector of ML-ready numpy arrays, Y is the corresponding oracle
+#     X,Y = format_one_hot_dataset(vector,solutions)
+
+#     ########################################################################################
+#     #TODO : fill in split_dataset
+#     X_train, X_test, Y_train, Y_test = split_dataset(X,Y)
+#     ########################################################################################
+
+
+
+#     clf = MLPClassifier(solver='sgd', alpha=1e-4, hidden_layer_sizes=(156), activation="logistic", tol=1e-5,
+#                         shuffle=True, verbose=False, random_state=1, max_iter=350)
+
+#     clf.fit(X_train,Y_train)
+#     print("score, ss and sequence")
+#     print("TRAINING ACCURACY",clf.score(X_train, Y_train))
+#     print("TEST ACCURACY",clf.score(X_test, Y_test))
 def split_dataset(X, Y):
     """Splits the dataset into training and testing"""
-    ########################################################################################
     # TODO : split the X and Y dataset into a reasonable training set and a test set. Your test set should have have 20% of the datapoints.
-    ########################################################################################
+
     # Tip : look up train_test_split with scikit-learn
 
-    X_train, X_test, Y_train, Y_test = np.array([1]), np.array([1]), np.array([1]), np.array([1])
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.20)
+    new_Y_train = []
+    new_X_train = []
+    count_x = 0
+    count_y = 0
 
+    for(y_ind, y_val) in enumerate(Y_train):
+        if(y_val == True):
+            new_Y_train.append(y_val)
+            new_X_train.append(X_train[y_ind])
+            count_y += 1
+    for(y_ind, y_val) in enumerate(Y_train):
+        if(count_x < count_y and y_val == False):
+            new_Y_train.append(y_val)
+            new_X_train.append(X_train[y_ind])
+            count_x += 1
     return X_train, X_test, Y_train, Y_test
+    # return new_X_train, X_test, new_Y_train, Y_test
+
 
 def format_simple_dataset(vector,solutions):
     """takes as input a vector of sequence strings and a vector of booleans
@@ -380,16 +506,15 @@ def format_one_hot_dataset(vector,solutions):
     Y = np.array(formatted_Y)
     return X,Y
 
+
 def run_NN_on_sequence(vector, solutions):
-    """Trains a scikit-learn basic 3 layers neural network on a sequence vector, outputs results"""
+    """Trains a scikit-learn basic 4 layers neural network on a sequence vector, outputs results"""
 
     #X is a the input vector of ML-ready numpy arrays, Y is the corresponding oracle
     X, Y = format_simple_dataset(vector, solutions)
 
-    ########################################################################################
     #TODO : fill in split_dataset
     X_train, X_test, Y_train, Y_test = split_dataset(X,Y)
-    ########################################################################################
 
 
     clf = MLPClassifier(solver='sgd', alpha=1e-6, hidden_layer_sizes=(156), activation="logistic", shuffle=True,
@@ -400,16 +525,14 @@ def run_NN_on_sequence(vector, solutions):
     print("TEST ACCURACY", clf.score(X_test, Y_test))
 
 def run_NN_for_ss_type(vector,solutions):
-    """Trains a scikit-learn basic 3 layers neural network on a sequence-structure vector, outputs results"""
+    """Trains a scikit-learn basic 4 layers neural network on a sequence-structure vector, outputs results"""
 
 
     #X is a the input vector of ML-ready numpy arrays, Y is the corresponding oracle
     X,Y = format_one_hot_dataset(vector,solutions)
 
-    ########################################################################################
     #TODO : fill in split_dataset
     X_train, X_test, Y_train, Y_test = split_dataset(X,Y)
-    ########################################################################################
 
 
 
@@ -420,6 +543,7 @@ def run_NN_for_ss_type(vector,solutions):
     print("score, ss and sequence")
     print("TRAINING ACCURACY",clf.score(X_train, Y_train))
     print("TEST ACCURACY",clf.score(X_test, Y_test))
+
 
 def predict_intramolecular_contacts(dataset):
     """Compares neural network results for DSSP and TMHMM secondary structures"""
@@ -454,14 +578,12 @@ if __name__== "__main__":
 
     # get_data() # used to retrieve sequences b/c advanced PDB search not currently working...
 
-    ########################################################################################
-    # TODO : follow the instructions in get_PDB_info()
+    # DONE : follow the instructions in get_PDB_info()
     # dataset = generate_dataset()
-    ########################################################################################
 
     #Use this line to avoid re-doing the parsing.
     dataset = pickle.load(open(os.getcwd() + "/ML_ready_dataset.pickle", "rb"))
-
+    
     ########################################################################################
     # TODO : fill in split_dataset()
     predict_intramolecular_contacts(dataset)
