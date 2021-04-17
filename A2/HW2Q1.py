@@ -3,7 +3,8 @@ from Bio.SeqRecord import SeqRecord
 # from Bio.Alphabet import IUPAC
 from Bio import SeqIO
 from Bio import PDB
-from Bio.PDB.DSSP import make_dssp_dict
+from Bio.PDB.DSSP import dssp_dict_from_pdb_file
+import tmhmm
 import pickle
 import os
 import sys
@@ -12,13 +13,14 @@ import numpy
 import subprocess
 import collections
 import pandas as pd
+import tmhmm
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
 from sklearn.neural_network import MLPClassifier
 import numpy as np
 from sklearn.model_selection import train_test_split
-    
+
 #DONE
 def calc_residue_dist(residue_one, residue_two) :
     """Computes and returns the distance between two residues, by comparing the position of their alpha carbons"""
@@ -87,10 +89,41 @@ def get_dssp_info(PDB_file,model,dir):
     #         i+=1
     # print(i)
 
-    cmd = 'mkdssp -i' + dir + '/' + PDB_file + ' -o temp.dssp'
-    stream = os.popen(cmd)
+    # cmd = 'mkdssp -i' + dir + '/' + PDB_file + ' -o temp.dssp'
+    dssp = dssp_dict_from_pdb_file(dir+'/'+PDB_file)
+    # stream = os.popen(cmd)
 
-    dssp = make_dssp_dict("temp.dssp")
+    # dssp = make_dssp_dict("temp.dssp")[0]
+    # i=0
+    # for key in dssp:
+    #     print(key)
+    #     print(dssp[key])
+        
+    #     i+=1
+    #     if i>5:
+    #         break
+    
+    # dssp = {}
+    # f = open('temp.dssp', 'r') 
+    # i=0
+    # for line in f:
+    #     if i < 28:
+    #         i+=1
+    #         continue
+    #     x = line.split()
+    #     # key = tuple(x[2], tuple())
+    #     key = tuple((x[2], tuple((' ', x[1], ' '))))
+    #     print(x)
+    #     idx = 4
+    #     if (i==28):
+    #       ss = '-'
+    #     else:
+    #       while x[idx] not in ['H', 'B', 'G', 'I', 'E', 'T', 'S', '-']:
+    #         idx+=1
+    #       ss = x[4]
+    #     print(ss)
+    #     value = tuple((x[3], ss))
+    
     return dssp[0]
 
     # #renames chains (otherwise, if A,B,D, get error saying "no chain C" b/c iterates alphabetically)
@@ -193,11 +226,8 @@ def get_PDB_info(dir):
         path = os.path.join(dir, PDB_file)
         structure = p.get_structure(PDB_file[:-4].upper(), path)
         model = structure[0]
-        print(model.child_list)
         #DONE : extract a list of residues from your model object
         residues = extract_residues(model)
-        print(len(residues))
-
         #DONE : compute a distance matrix of size len(sequence)*len(sequence) with the distance between each residue
         matrix = compute_distance_matrix(residues)
         
@@ -226,28 +256,26 @@ def get_PDB_info(dir):
             sequence+=(pp.get_sequence())
        
         # get dssp secondary structure (if using biopython)
-        # for aa in sorted(dssp_info.keys()):
-        #     ss = dssp_info[aa][2]
-        #     # H = G is 3-turn, H = 4-turn, I = 5-turn helix
-        #     if (ss in ['H', 'G', 'I']):
-        #         dssp_ss+="H"
-        #     #everything that isnt a helix is considered a coil...
-        #     else:
-        #         dssp_ss+="C"
-
-        # get dssp secondary structure (if using command line call)
-        for key in dssp_info:
-            ss = dssp_info.get(key)[1]
+        for aa in sorted(dssp_info.keys()):
+            ss = dssp_info[aa][2]
+            # H = G is 3-turn, H = 4-turn, I = 5-turn helix
             if (ss in ['H', 'G', 'I']):
                 dssp_ss+="H"
             #everything that isnt a helix is considered a coil...
             else:
                 dssp_ss+="C"
 
-        ########################################################################################
+        # get dssp secondary structure (if using command line call)
+        # for key in dssp_info:
+        #     ss = dssp_info.get(key)[1]
+        #     if (ss in ['H', 'G', 'I']):
+        #         dssp_ss+="H"
+        #     #everything that isnt a helix is considered a coil...
+        #     else:
+        #         dssp_ss+="C"
+
         #DONE : write the sequence to a fasta file to call TMHMM with it, or to use the webserver
         filename = write_fasta(sequence,PDB_file)
-        ########################################################################################
 
         ########################################################################################
         #TODO : obtain secondary structure prediction for this FASTA file with TMHMM
@@ -397,7 +425,7 @@ def get_data():
 if __name__== "__main__":
     """executes program. If you already have a dataset, you can load it via pickle"""
 
-    get_data() # used to retrieve sequences b/c advanced PDB search not currently working...
+    # get_data() # used to retrieve sequences b/c advanced PDB search not currently working...
 
     ########################################################################################
     # TODO : follow the instructions in get_PDB_info()
