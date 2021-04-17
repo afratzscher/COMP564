@@ -4,16 +4,17 @@ from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
 from Bio import PDB
 from Bio.PDB.DSSP import dssp_dict_from_pdb_file
-import tmhmm
 import pickle
 import os
+from os import path
 import sys
 import warnings
 import numpy
 import subprocess
 import collections
 import pandas as pd
-import tmhmm
+# import tmhmm
+import re
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
@@ -62,7 +63,7 @@ def extract_residues(model):
             residues.append(residue)
     return residues
 
-#DONE -> FIXED CHAIN ISSUE!
+#DONE 
 def get_dssp_info(PDB_file,model,dir):
     """Runs DSSP on protein input"""
     #DONE : you can run DSSP through biopython. The output contains a lot of useful information.
@@ -151,24 +152,27 @@ def get_dssp_info(PDB_file,model,dir):
 
     #     return PDB.DSSP(model, dir + '/' + PDB_file, dssp = 'mkdssp')
 
-
 #DONE
 def write_fasta(sequence,PDB_file):
     """Writes sequence to fasta file named after the PDB the sequence comes from"""
 
    #TODO : implement the writing of a fasta file from the sequence obtained from the PDB file.
-    dir = os.getcwd() + '/data/fasta/'
-    if not os.path.exists(dir):
-        os.makedirs(dir)
-    pdbfilename = PDB_file[:-4]
-    filename = dir + pdbfilename + '.fasta'
+    filename = os.getcwd() + '/data/all.fasta'
     f = open(filename, "a")
-    f.write(">"+pdbfilename+'\n'+str(sequence))
+    f.write(">"+PDB_file[:-4]+'\n'+str(sequence)+'\n')
     f.close()
-    #return the name of the file.
-    return filename
+    # if not os.path.exists(dir):
+    #     os.makedirs(dir)
+    # pdbfilename = PDB_file[:-4]
+    # filename = dir + pdbfilename + '.fasta'
+    # f = open(filename, "a")
+    # f.write(">"+pdbfilename+'\n'+str(sequence))
+    # f.close()
+    # #return the name of the file.
+    # return filename
+    return PDB_file[:-4]
 
-def run_tmhmm(filename):
+def run_tmhmm(pdb_file, filename):
     """Runs tmhmm on input fasta files, sends the output to STDout, processes output into secondary structure"""
 
     ########################################################################################
@@ -177,8 +181,30 @@ def run_tmhmm(filename):
     #If you cannot get tmhmm to run, you can write all your sequences to a FASTA file,
     # use the webserver and parse the output file with this function. Otherwise, you can use this function to run
     #TMHMM on some FASTA file and parse its output.
-
-    return ""
+    df = pd.read_csv(filename, sep='\t', header=None)
+    col = df.loc[df[0] == pdb_file]
+    length = int(col[1].reset_index(drop=True)[0][4:])
+    idx = col[5].reset_index(drop=True)[0][9:]
+    idx = re.split('o|i|-',idx) 
+    # NOTE: first position = 1 in TMHMM (NOT 0)
+    idx.pop(0)
+    idx.pop(-1)
+    ss = ''
+    prev = 0
+    num = 0
+    if idx:
+        for i in idx:
+            num+=1
+            if num%2 == 0:
+                ss+=('H'*(int(i)-prev+1))
+            else:
+                ss+=('C'*(int(i)-prev-1))
+            prev = int(i)
+        # add until end
+        ss+=('C'*(length-int(idx[-1])))
+    else:
+        ss+=('C'*length)
+    return ss
 
 #DONE
 def get_contact_numbers(contact_map):
@@ -215,6 +241,8 @@ def get_PDB_info(dir):
     DSSP_vector, TMHMM_vector, oracle = [],[],[]
 
     print("There are",len(os.listdir(dir)),"PDB files to parse")
+    if os.path.exists(os.getcwd()+'/data/all.fasta'):
+        os.remove(os.getcwd()+'/data/all.fasta') 
 
     #Assemble a machine learning dataset incrementally, for each PDB file in the directory
     for ind,PDB_file in enumerate(os.listdir(dir)):
@@ -226,7 +254,8 @@ def get_PDB_info(dir):
         path = os.path.join(dir, PDB_file)
         structure = p.get_structure(PDB_file[:-4].upper(), path)
         model = structure[0]
-        #DONE : extract a list of residues from your model object
+
+        # DONE : extract a list of residues from your model object
         residues = extract_residues(model)
         #DONE : compute a distance matrix of size len(sequence)*len(sequence) with the distance between each residue
         matrix = compute_distance_matrix(residues)
@@ -242,7 +271,6 @@ def get_PDB_info(dir):
         contact_info = get_contact_numbers(contact_map)
         # print(contact_info,"contacts")
         
-        # print(model.child_list)
         #DONE : obtain the secondary structure prediction of the PDB model with DSSP
         dssp_info = get_dssp_info(PDB_file,model,dir)
         
@@ -277,10 +305,9 @@ def get_PDB_info(dir):
         #DONE : write the sequence to a fasta file to call TMHMM with it, or to use the webserver
         filename = write_fasta(sequence,PDB_file)
 
-        ########################################################################################
-        #TODO : obtain secondary structure prediction for this FASTA file with TMHMM
-        tm_ss = run_tmhmm(filename)
-        ########################################################################################
+        # already ran tmhmm on compiled fasta file on webserver -> need to parse file
+        #DONE : obtain secondary structure prediction for this FASTA file with TMHMM
+        tm_ss = run_tmhmm(filename, os.getcwd()+'/tmhmm_results.txt')
 
         DSSP_vector, TMHMM_vector, oracle = generate_ML_dataset(sequence,dssp_ss,tm_ss,has_contact,DSSP_vector, TMHMM_vector, oracle)
     return DSSP_vector, TMHMM_vector, oracle
@@ -429,13 +456,13 @@ if __name__== "__main__":
 
     ########################################################################################
     # TODO : follow the instructions in get_PDB_info()
-    dataset = generate_dataset()
+    # dataset = generate_dataset()
     ########################################################################################
 
     #Use this line to avoid re-doing the parsing.
-    #dataset = pickle.load(open("ML_ready_dataset_non_redundant", "rb"))
+    dataset = pickle.load(open(os.getcwd() + "/ML_ready_dataset.pickle", "rb"))
 
     ########################################################################################
     # TODO : fill in split_dataset()
-    # predict_intramolecular_contacts(dataset)
+    predict_intramolecular_contacts(dataset)
     ########################################################################################
