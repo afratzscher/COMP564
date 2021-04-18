@@ -25,17 +25,16 @@ from sklearn.model_selection import train_test_split
 #DONE
 def calc_residue_dist(residue_one, residue_two) :
     """Computes and returns the distance between two residues, by comparing the position of their alpha carbons"""
-    #DONE : return an integer representing the distance between the two residues, in Angstrom
+    #TODO : return an integer representing the distance between the two residues, in Angstrom
     ca1 = residue_one["CA"]
     ca2 = residue_two["CA"]
-    # Simply subtract the atoms to get their distance
     distance = ca1 - ca2
     return abs(distance)
 
 #DONE (with consecutive = -1)
 def compute_distance_matrix(residues) :
     """Computes a matrix of size len(Seq) * len(Seq) with distances between each residue."""
-    #DONE : return a numpy 2D array of distances between each residue of the structure.
+    #TODO : return a numpy 2D array of distances between each residue of the structure.
     #Tip : you might want to make sure you filter out consecutive residues at this step.
     ########################################################################################
 
@@ -66,110 +65,21 @@ def extract_residues(model):
 #DONE 
 def get_dssp_info(PDB_file,model,dir):
     """Runs DSSP on protein input"""
-    #DONE : you can run DSSP through biopython. The output contains a lot of useful information.
+    #TODO : you can run DSSP through biopython. The output contains a lot of useful information.
     #Tip : make sure your secondary structure indexing matches the sequence order in the PDB file!
-    '''Had issues using DSSP through biopython -> mainly issue with chains needing to be in 
-    alphabetical order (A,B,C) with no letters in between...'''
-    #removes non-standard residues (not amino acids)
-    # to_remove = {}
-    # for chain in model:
-    #     temp = []
-    #     for residue in chain:
-    #         if not (PDB.is_aa(residue, standard=True)):
-    #             temp.append(residue.id)
-    #     to_remove[chain] = temp
-    # for chain in model:
-    #     print(chain)
-    #     for residue in list(to_remove[chain]):
-    #         chain.detach_child(residue)
-    #         print(residue)
-
-    # i=0
-    # for chain in model:
-    #     for residue in chain:
-    #         i+=1
-    # print(i)
-
-    # cmd = 'mkdssp -i' + dir + '/' + PDB_file + ' -o temp.dssp'
     dssp = dssp_dict_from_pdb_file(dir+'/'+PDB_file)
-    # stream = os.popen(cmd)
-
-    # dssp = make_dssp_dict("temp.dssp")[0]
-    # i=0
-    # for key in dssp:
-    #     print(key)
-    #     print(dssp[key])
-        
-    #     i+=1
-    #     if i>5:
-    #         break
-    
-    # dssp = {}
-    # f = open('temp.dssp', 'r') 
-    # i=0
-    # for line in f:
-    #     if i < 28:
-    #         i+=1
-    #         continue
-    #     x = line.split()
-    #     # key = tuple(x[2], tuple())
-    #     key = tuple((x[2], tuple((' ', x[1], ' '))))
-    #     print(x)
-    #     idx = 4
-    #     if (i==28):
-    #       ss = '-'
-    #     else:
-    #       while x[idx] not in ['H', 'B', 'G', 'I', 'E', 'T', 'S', '-']:
-    #         idx+=1
-    #       ss = x[4]
-    #     print(ss)
-    #     value = tuple((x[3], ss))
-    
     return dssp[0]
-
-    # #renames chains (otherwise, if A,B,D, get error saying "no chain C" b/c iterates alphabetically)
-    # try:
-    #     return PDB.DSSP(model, dir + '/' + PDB_file, dssp = 'mkdssp')
-    # except:
-    #     ch=1
-    #     tryagain = False
-    #     keeptrying = True
-    #     for chain in model:
-    #         chain.id = ch
-    #         ch += 1
-
-    #     ch = 'A'
-    #     for chain in model:
-    #         chain.id = ch
-    #         ch = chr(ord(ch) + 1)
-    #     print(model.child_list)
-    
-    #     to_remove = []
-    #     for chain in model:
-    #         for residue in chain:
-    #             if not(PDB.is_aa(residue, standard=True)):
-    #                 to_remove.append(residue.id[1])
-
-    #     return PDB.DSSP(model, dir + '/' + PDB_file, dssp = 'mkdssp')
 
 #DONE
 def write_fasta(sequence,PDB_file):
     """Writes sequence to fasta file named after the PDB the sequence comes from"""
 
    #TODO : implement the writing of a fasta file from the sequence obtained from the PDB file.
+   #writes all sequences to a fasta file called "all.fasta" -> use this combined fasta to run tmhmm
     filename = os.getcwd() + '/data/all.fasta'
     f = open(filename, "a")
     f.write(">"+PDB_file[:-4]+'\n'+str(sequence)+'\n')
     f.close()
-    # if not os.path.exists(dir):
-    #     os.makedirs(dir)
-    # pdbfilename = PDB_file[:-4]
-    # filename = dir + pdbfilename + '.fasta'
-    # f = open(filename, "a")
-    # f.write(">"+pdbfilename+'\n'+str(sequence))
-    # f.close()
-    # #return the name of the file.
-    # return filename
     return PDB_file[:-4]
 
 #DONE
@@ -179,6 +89,9 @@ def run_tmhmm(pdb_file, filename):
     #If you cannot get tmhmm to run, you can write all your sequences to a FASTA file,
     # use the webserver and parse the output file with this function. Otherwise, you can use this function to run
     #TMHMM on some FASTA file and parse its output.
+    
+    #ran tmhmm on all.fasta using webserver
+    # in this function, parsing through output file (called tmhmm_results.txt)
     df = pd.read_csv(filename, sep='\t', header=None)
     col = df.loc[df[0] == pdb_file]
     length = int(col[1].reset_index(drop=True)[0][4:])
@@ -198,7 +111,7 @@ def run_tmhmm(pdb_file, filename):
             else:
                 ss+=('C'*(int(i)-prev-1))
             prev = int(i)
-        # add until end
+        # last index until end
         ss+=('C'*(length-int(idx[-1])))
     else:
         ss+=('C'*length)
@@ -207,10 +120,10 @@ def run_tmhmm(pdb_file, filename):
 #DONE
 def get_contact_numbers(contact_map):
     """Returns the proportion of residues involved in intramolecular contacts"""
-
-    #DONE : a utility function for the number of contacts in the protein, which you might use to make sure your output makes sense
+    #TODO : a utility function for the number of contacts in the protein, which you might use to make sure your output makes sense
     return numpy.count_nonzero(contact_map) / float(contact_map.size)
 
+#DONE
 def generate_ML_dataset(sequence,dssp_ss,tm_ss,has_contact,DSSP_vector, TMHMM_vector, oracle):
     """generates vectors for machine learning based on sequence, DSSP and TMHMM outputs"""
 
@@ -238,15 +151,22 @@ def generate_ML_dataset(sequence,dssp_ss,tm_ss,has_contact,DSSP_vector, TMHMM_ve
         if(len(seq_nine[i[0]]) < 9): continue
         DSSP_vector.append(zip(seq_nine[i[0]], dssp_nine[i[0]]))
         TMHMM_vector.append(zip(seq_nine[i[0]], tm_nine[i[0]]))
+
+    i = 0
+    while i<len(sequence):
+        if i == 0:
+            oracle.append(has_contact[i+4])
+        else:
+            oracle.append(has_contact[i])
+        i = i + 9
     return DSSP_vector, TMHMM_vector, oracle
 
 def split_by_n(seq, n):
-    '''A generator to divide a sequence into chunks of n units.'''
+    '''Divides a sequence into n subunits'''
     while seq:
         yield seq[:n]
         seq = seq[n:]
 
-###WORKING ON THIS!
 def get_PDB_info(dir):
     """Extracts sequence, DSSP secondary structure, TMHMM secondary structure and contact information from PDB files in input directory"""
 
@@ -268,26 +188,27 @@ def get_PDB_info(dir):
         structure = p.get_structure(PDB_file[:-4].upper(), path)
         model = structure[0]
 
-        # DONE : extract a list of residues from your model object
+        #TODO : extract a list of residues from your model object
         residues = extract_residues(model)
-        #DONE : compute a distance matrix of size len(sequence)*len(sequence) with the distance between each residue
+        #TODO : compute a distance matrix of size len(sequence)*len(sequence) with the distance between each residue
         matrix = compute_distance_matrix(residues)
         
-        #DONE : contact map should be a boolean numpy array of the same size as the distance matrix.
+        #TODO : contact map should be a boolean numpy array of the same size as the distance matrix.
         #if two amino acids are within 5 angstroms of each other in 3D, but distant of at least 10 in sequence, the table should have True, else False.
         # use ">" because consecutive distance in matrix set to -1
         contact_map = (matrix>-1)
+
         #we can then define the list has_contact from the contactmap array.
         has_contact = [True if True in contact_map[residue] else False for residue in contact_map]
         
-        #DONE : contact info should return the proportion of residues that have an intramolecular contact in your object.
+        #TODO : contact info should return the proportion of residues that have an intramolecular contact in your object.
         contact_info = get_contact_numbers(contact_map)
         # print(contact_info,"contacts")
         
-        #DONE : obtain the secondary structure prediction of the PDB model with DSSP
+        #TODO : obtain the secondary structure prediction of the PDB model with DSSP
         dssp_info = get_dssp_info(PDB_file,model,dir)
         
-        #DONE : obtain the sequence of the PDB file in some way of your choice.
+        #TODO : obtain the sequence of the PDB file in some way of your choice.
         sequence = ""
         dssp_ss = "" #ss stands for secondary structure
 
@@ -306,20 +227,11 @@ def get_PDB_info(dir):
             else:
                 dssp_ss+="C"
 
-        # get dssp secondary structure (if using command line call)
-        # for key in dssp_info:
-        #     ss = dssp_info.get(key)[1]
-        #     if (ss in ['H', 'G', 'I']):
-        #         dssp_ss+="H"
-        #     #everything that isnt a helix is considered a coil...
-        #     else:
-        #         dssp_ss+="C"
-
-        #DONE : write the sequence to a fasta file to call TMHMM with it, or to use the webserver
+        #TODO : write the sequence to a fasta file to call TMHMM with it, or to use the webserver
         filename = write_fasta(sequence,PDB_file)
 
         # already ran tmhmm on compiled fasta file on webserver -> need to parse file
-        #DONE : obtain secondary structure prediction for this FASTA file with TMHMM
+        #TODO : obtain secondary structure prediction for this FASTA file with TMHMM
         tm_ss = run_tmhmm(filename, os.getcwd()+'/tmhmm_results.txt')
 
         DSSP_vector, TMHMM_vector, oracle = generate_ML_dataset(sequence,dssp_ss,tm_ss,has_contact,DSSP_vector, TMHMM_vector, oracle)
@@ -335,130 +247,14 @@ def generate_dataset():
     pickle.dump((DSSP_vector, TMHMM_vector, oracle),open("ML_ready_dataset.pickle","wb"))
     return DSSP_vector, TMHMM_vector, oracle
 
-# def split_dataset(X, Y):
-#     """Splits the dataset into training and testing"""
-#     ########################################################################################
-#     # TODO : split the X and Y dataset into a reasonable training set and a test set. Your test set should have have 20% of the datapoints.
-#     ########################################################################################
-#     # Tip : look up train_test_split with scikit-learn
-
-#     X_train, X_test, Y_train, Y_test = np.array([1]), np.array([1]), np.array([1]), np.array([1])
-
-#     return X_train, X_test, Y_train, Y_test
-
-# def format_simple_dataset(vector,solutions):
-#     """takes as input a vector of sequence strings and a vector of booleans
-#     outputs a vector of size 9 vectors of tuples and an array of binary numbers"""
-
-#     AA = ["G", "A", "L", "M", "F", "W", "K", "Q", "E", "S", "P", "V", "I", "C", "Y", "H", "R", "N", "D", "T", "X"]
-#     contact_truth = [False, True]
-
-#     training_size = len(vector)
-#     formatted_X = []
-#     for i in vector[:training_size]:
-#         current_vec = np.zeros(189)
-#         for ind, j in enumerate(i):
-#             nuc = AA.index(j[0])
-#             current_vec[21 * ind + nuc] = 1
-#         current_vec = np.array(current_vec)
-#         formatted_X.append(current_vec)
-#     X = np.array(formatted_X)
-#     formatted_Y = np.zeros(training_size)
-#     for i in range(training_size):
-#         formatted_Y[i] = contact_truth.index(solutions[i])
-#     Y = np.array(formatted_Y)
-#     return X,Y
-
-# def format_one_hot_dataset(vector,solutions):
-#     """Takes as input a vector of 9 sequence, ss tuples, outputs a vector of one-hot vectors of size 198 and a binary vector"""
-#     AA = ["G", "A", "L", "M", "F", "W", "K", "Q", "E", "S", "P", "V", "I", "C", "Y", "H", "R", "N", "D", "T", "X"]
-#     ss = ["H", "C"]
-#     contact_truth = [False, True]
-
-#     training_size = len(vector)
-#     formatted_X = []
-#     for i in vector[:training_size]:
-#         current_vec = np.zeros(198)
-#         for ind, j in enumerate(i):
-#             nuc = AA.index(j[0])
-#             sec = ss.index(j[1])
-#             current_vec[22 * ind + nuc] = 1
-#             current_vec[22 * ind + 21] = sec
-#         current_vec = np.array(current_vec)
-#         formatted_X.append(current_vec)
-#     X = np.array(formatted_X)
-#     formatted_Y = np.zeros(training_size)
-#     for i in range(training_size):
-#         formatted_Y[i] = contact_truth.index(solutions[i])
-#     Y = np.array(formatted_Y)
-#     return X,Y
-
-# def run_NN_on_sequence(vector, solutions):
-#     """Trains a scikit-learn basic 3 layers neural network on a sequence vector, outputs results"""
-
-#     #X is a the input vector of ML-ready numpy arrays, Y is the corresponding oracle
-#     X, Y = format_simple_dataset(vector, solutions)
-
-#     ########################################################################################
-#     #TODO : fill in split_dataset
-#     X_train, X_test, Y_train, Y_test = split_dataset(X,Y)
-#     ########################################################################################
-
-
-#     clf = MLPClassifier(solver='sgd', alpha=1e-6, hidden_layer_sizes=(156), activation="logistic", shuffle=True,
-#                         verbose=False, random_state=1, tol=1e-5, max_iter=350)
-#     clf.fit(X_train, Y_train)
-#     print("score, sequence only")
-#     print("TRAINING ACCURACY", clf.score(X_train, Y_train))
-#     print("TEST ACCURACY", clf.score(X_test, Y_test))
-
-# def run_NN_for_ss_type(vector,solutions):
-#     """Trains a scikit-learn basic 3 layers neural network on a sequence-structure vector, outputs results"""
-
-
-#     #X is a the input vector of ML-ready numpy arrays, Y is the corresponding oracle
-#     X,Y = format_one_hot_dataset(vector,solutions)
-
-#     ########################################################################################
-#     #TODO : fill in split_dataset
-#     X_train, X_test, Y_train, Y_test = split_dataset(X,Y)
-#     ########################################################################################
-
-
-
-#     clf = MLPClassifier(solver='sgd', alpha=1e-4, hidden_layer_sizes=(156), activation="logistic", tol=1e-5,
-#                         shuffle=True, verbose=False, random_state=1, max_iter=350)
-
-#     clf.fit(X_train,Y_train)
-#     print("score, ss and sequence")
-#     print("TRAINING ACCURACY",clf.score(X_train, Y_train))
-#     print("TEST ACCURACY",clf.score(X_test, Y_test))
 def split_dataset(X, Y):
     """Splits the dataset into training and testing"""
     # TODO : split the X and Y dataset into a reasonable training set and a test set. Your test set should have have 20% of the datapoints.
-
     # Tip : look up train_test_split with scikit-learn
-
     X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.20)
-    new_Y_train = []
-    new_X_train = []
-    count_x = 0
-    count_y = 0
-
-    for(y_ind, y_val) in enumerate(Y_train):
-        if(y_val == True):
-            new_Y_train.append(y_val)
-            new_X_train.append(X_train[y_ind])
-            count_y += 1
-    for(y_ind, y_val) in enumerate(Y_train):
-        if(count_x < count_y and y_val == False):
-            new_Y_train.append(y_val)
-            new_X_train.append(X_train[y_ind])
-            count_x += 1
     return X_train, X_test, Y_train, Y_test
-    # return new_X_train, X_test, new_Y_train, Y_test
 
-
+#DONE
 def format_simple_dataset(vector,solutions):
     """takes as input a vector of sequence strings and a vector of booleans
     outputs a vector of size 9 vectors of tuples and an array of binary numbers"""
@@ -482,6 +278,7 @@ def format_simple_dataset(vector,solutions):
     Y = np.array(formatted_Y)
     return X,Y
 
+#DONE
 def format_one_hot_dataset(vector,solutions):
     """Takes as input a vector of 9 sequence, ss tuples, outputs a vector of one-hot vectors of size 198 and a binary vector"""
     AA = ["G", "A", "L", "M", "F", "W", "K", "Q", "E", "S", "P", "V", "I", "C", "Y", "H", "R", "N", "D", "T", "X"]
@@ -506,11 +303,11 @@ def format_one_hot_dataset(vector,solutions):
     Y = np.array(formatted_Y)
     return X,Y
 
-
 def run_NN_on_sequence(vector, solutions):
-    """Trains a scikit-learn basic 4 layers neural network on a sequence vector, outputs results"""
+    """Trains a scikit-learn basic 3 layers neural network on a sequence vector, outputs results"""
 
     #X is a the input vector of ML-ready numpy arrays, Y is the corresponding oracle
+
     X, Y = format_simple_dataset(vector, solutions)
 
     #TODO : fill in split_dataset
@@ -525,7 +322,7 @@ def run_NN_on_sequence(vector, solutions):
     print("TEST ACCURACY", clf.score(X_test, Y_test))
 
 def run_NN_for_ss_type(vector,solutions):
-    """Trains a scikit-learn basic 4 layers neural network on a sequence-structure vector, outputs results"""
+    """Trains a scikit-learn basic 3 layers neural network on a sequence-structure vector, outputs results"""
 
 
     #X is a the input vector of ML-ready numpy arrays, Y is the corresponding oracle
@@ -545,11 +342,11 @@ def run_NN_for_ss_type(vector,solutions):
     print("TEST ACCURACY",clf.score(X_test, Y_test))
 
 
+#DONE
 def predict_intramolecular_contacts(dataset):
     """Compares neural network results for DSSP and TMHMM secondary structures"""
     DSSP_vector, TM_vector, solutions = dataset
     print("SEQUENCE ONLY RESULTS")
-
     #use either vector for sequence only prediction
     run_NN_on_sequence(DSSP_vector,solutions)
     print("DSSP RESULTS")
@@ -557,9 +354,7 @@ def predict_intramolecular_contacts(dataset):
     print("TM RESULTS")
     run_NN_for_ss_type(TM_vector,solutions)
 
-    ########################################################################################
     #TODO : analyze your results!
-    ########################################################################################
 
 #DONE
 def get_data():
@@ -579,12 +374,12 @@ if __name__== "__main__":
     # get_data() # used to retrieve sequences b/c advanced PDB search not currently working...
 
     # DONE : follow the instructions in get_PDB_info()
-    # dataset = generate_dataset()
+    dataset = generate_dataset()
 
-    #Use this line to avoid re-doing the parsing.
-    dataset = pickle.load(open(os.getcwd() + "/ML_ready_dataset.pickle", "rb"))
-    
-    ########################################################################################
-    # TODO : fill in split_dataset()
-    predict_intramolecular_contacts(dataset)
-    ########################################################################################
+    # #Use this line to avoid re-doing the parsing.
+    # dataset = pickle.load(open(os.getcwd() + "/ML_ready_dataset.pickle", "rb"))
+
+    # ########################################################################################
+    # # TODO : fill in split_dataset()
+    # predict_intramolecular_contacts(dataset)
+    # ########################################################################################
