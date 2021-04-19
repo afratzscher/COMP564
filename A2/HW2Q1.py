@@ -9,20 +9,22 @@ import os
 from os import path
 import sys
 import warnings
+import numpy as np
 import numpy
 import subprocess
 import collections
 import pandas as pd
-# import tmhmm
 import re
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
 from sklearn.neural_network import MLPClassifier
-import numpy as np
 from sklearn.model_selection import train_test_split
+from imblearn.combine import SMOTETomek
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
+from copy import deepcopy
 
-#DONE
 def calc_residue_dist(residue_one, residue_two) :
     """Computes and returns the distance between two residues, by comparing the position of their alpha carbons"""
     #TODO : return an integer representing the distance between the two residues, in Angstrom
@@ -31,13 +33,11 @@ def calc_residue_dist(residue_one, residue_two) :
     distance = ca1 - ca2
     return abs(distance)
 
-#DONE (with consecutive = -1)
 def compute_distance_matrix(residues) :
     """Computes a matrix of size len(Seq) * len(Seq) with distances between each residue."""
     #TODO : return a numpy 2D array of distances between each residue of the structure.
     #Tip : you might want to make sure you filter out consecutive residues at this step.
     ########################################################################################
-
     matrix = np.zeros((len(residues), len(residues)), np.float)
     for row, residue_one in enumerate(residues):
         for col, residue_two in enumerate(residues):
@@ -47,13 +47,9 @@ def compute_distance_matrix(residues) :
 
     return matrix
 
-#DONE
 def extract_residues(model):
     """Returns a list of protein residues given a PDB model"""
-
-    ########################################################################################
     #TODO : return a list of protein residues given a PDB model
-    ########################################################################################
     residues = []
     for residue in model.get_residues():
         # PDB.is_aa returns true if residue object/string is an amino acid 
@@ -62,7 +58,6 @@ def extract_residues(model):
             residues.append(residue)
     return residues
 
-#DONE 
 def get_dssp_info(PDB_file,model,dir):
     """Runs DSSP on protein input"""
     #TODO : you can run DSSP through biopython. The output contains a lot of useful information.
@@ -70,19 +65,18 @@ def get_dssp_info(PDB_file,model,dir):
     dssp = dssp_dict_from_pdb_file(dir+'/'+PDB_file)
     return dssp[0]
 
-#DONE
 def write_fasta(sequence,PDB_file):
     """Writes sequence to fasta file named after the PDB the sequence comes from"""
 
    #TODO : implement the writing of a fasta file from the sequence obtained from the PDB file.
-   #writes all sequences to a fasta file called "all.fasta" -> use this combined fasta to run tmhmm
+   
+   #NOTE: writes all sequences to a fasta file called "all.fasta" -> use this combined fasta to run tmhmm
     filename = os.getcwd() + '/data/all.fasta'
     f = open(filename, "a")
     f.write(">"+PDB_file[:-4]+'\n'+str(sequence)+'\n')
     f.close()
     return PDB_file[:-4]
 
-#DONE
 def run_tmhmm(pdb_file, filename):
     """Runs tmhmm on input fasta files, sends the output to STDout, processes output into secondary structure"""
     #TODO : run TMHMM and output its resulting secondary structure.
@@ -90,7 +84,7 @@ def run_tmhmm(pdb_file, filename):
     # use the webserver and parse the output file with this function. Otherwise, you can use this function to run
     #TMHMM on some FASTA file and parse its output.
     
-    #ran tmhmm on all.fasta using webserver
+    #NOTE: ran tmhmm on all.fasta using webserver
     # in this function, parsing through output file (called tmhmm_results.txt)
     df = pd.read_csv(filename, sep='\t', header=None)
     col = df.loc[df[0] == pdb_file]
@@ -117,13 +111,11 @@ def run_tmhmm(pdb_file, filename):
         ss+=('C'*length)
     return ss
 
-#DONE
 def get_contact_numbers(contact_map):
     """Returns the proportion of residues involved in intramolecular contacts"""
     #TODO : a utility function for the number of contacts in the protein, which you might use to make sure your output makes sense
     return numpy.count_nonzero(contact_map) / float(contact_map.size)
 
-#DONE
 def generate_ML_dataset(sequence,dssp_ss,tm_ss,has_contact,DSSP_vector, TMHMM_vector, oracle):
     """generates vectors for machine learning based on sequence, DSSP and TMHMM outputs"""
 
@@ -224,6 +216,8 @@ def get_PDB_info(dir):
             if (ss in ['H', 'G', 'I']):
                 dssp_ss+="H"
             #everything that isnt a helix is considered a coil...
+            elif (ss=='X'):
+                newString+=''
             else:
                 dssp_ss+="C"
 
@@ -304,43 +298,48 @@ def format_one_hot_dataset(vector,solutions):
     return X,Y
 
 def run_NN_on_sequence(vector, solutions):
-    """Trains a scikit-learn basic 3 layers neural network on a sequence vector, outputs results"""
-
+    """Trains a scikit-learn basic 4 layers neural network on a sequence vector, outputs results"""
     #X is a the input vector of ML-ready numpy arrays, Y is the corresponding oracle
-
-    X, Y = format_simple_dataset(vector, solutions)
-
+    vector_copy = deepcopy(vector)
+    X, Y = format_simple_dataset(vector_copy, solutions)    
     #TODO : fill in split_dataset
-    X_train, X_test, Y_train, Y_test = split_dataset(X,Y)
-
+    # X_train, X_test, Y_train, Y_test = split_dataset(X,Y)
+    method = SMOTETomek()
+    X_resampled, y_resampled = method.fit_resample(X, Y)
+    X_train, X_test, Y_train, Y_test = split_dataset(X_resampled, y_resampled)
 
     clf = MLPClassifier(solver='sgd', alpha=1e-6, hidden_layer_sizes=(156), activation="logistic", shuffle=True,
                         verbose=False, random_state=1, tol=1e-5, max_iter=350)
     clf.fit(X_train, Y_train)
+    Y_pred_train = clf.predict(X_train)
+    Y_pred_test = clf.predict(X_test)
     print("score, sequence only")
-    print("TRAINING ACCURACY", clf.score(X_train, Y_train))
-    print("TEST ACCURACY", clf.score(X_test, Y_test))
+    print("TRAIN SCORES", classification_report(Y_train, Y_pred_train))
+    print("CONFUSION MATRIX\n", confusion_matrix(Y_train, Y_pred_train))
+    print("TEST SCORES", classification_report(Y_test, Y_pred_test))
+    print("CONFUSION MATRIX\n", confusion_matrix(Y_test, Y_pred_test))
 
 def run_NN_for_ss_type(vector,solutions):
-    """Trains a scikit-learn basic 3 layers neural network on a sequence-structure vector, outputs results"""
-
-
+    """Trains a scikit-learn basic 4 layers neural network on a sequence-structure vector, outputs results"""
     #X is a the input vector of ML-ready numpy arrays, Y is the corresponding oracle
     X,Y = format_one_hot_dataset(vector,solutions)
-
     #TODO : fill in split_dataset
-    X_train, X_test, Y_train, Y_test = split_dataset(X,Y)
-
-
+    # X_train, X_test, Y_train, Y_test = split_dataset(X,Y)
+    method = SMOTETomek()
+    X_resampled, y_resampled = method.fit_resample(X, Y)
+    X_train, X_test, Y_train, Y_test = split_dataset(X_resampled, y_resampled)
 
     clf = MLPClassifier(solver='sgd', alpha=1e-4, hidden_layer_sizes=(156), activation="logistic", tol=1e-5,
                         shuffle=True, verbose=False, random_state=1, max_iter=350)
 
     clf.fit(X_train,Y_train)
+    Y_pred_train = clf.predict(X_train)
+    Y_pred_test = clf.predict(X_test)
     print("score, ss and sequence")
-    print("TRAINING ACCURACY",clf.score(X_train, Y_train))
-    print("TEST ACCURACY",clf.score(X_test, Y_test))
-
+    print("TRAIN SCORES", classification_report(Y_train, Y_pred_train))
+    print("CONFUSION MATRIX\n", confusion_matrix(Y_train, Y_pred_train))
+    print("TEST SCORES", classification_report(Y_test, Y_pred_test))
+    print("CONFUSION MATRIX\n", confusion_matrix(Y_test, Y_pred_test))
 
 #DONE
 def predict_intramolecular_contacts(dataset):
@@ -374,12 +373,12 @@ if __name__== "__main__":
     # get_data() # used to retrieve sequences b/c advanced PDB search not currently working...
 
     # DONE : follow the instructions in get_PDB_info()
-    dataset = generate_dataset()
+    # dataset = generate_dataset()
 
-    # #Use this line to avoid re-doing the parsing.
-    # dataset = pickle.load(open(os.getcwd() + "/ML_ready_dataset.pickle", "rb"))
+    #Use this line to avoid re-doing the parsing.
+    dataset = pickle.load(open(os.getcwd() + "/ML_ready_dataset.pickle", "rb"))
 
-    # ########################################################################################
-    # # TODO : fill in split_dataset()
-    # predict_intramolecular_contacts(dataset)
-    # ########################################################################################
+    ########################################################################################
+    # TODO : fill in split_dataset()
+    predict_intramolecular_contacts(dataset)
+    ########################################################################################
