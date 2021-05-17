@@ -211,13 +211,11 @@ def get_PDB_info(dir):
        
         # get dssp secondary structure (if using biopython)
         for aa in sorted(dssp_info.keys()):
-            ss = dssp_info[aa][2]
+            ss = dssp_info[aa][1]
             # H = G is 3-turn, H = 4-turn, I = 5-turn helix
             if (ss in ['H', 'G', 'I']):
                 dssp_ss+="H"
             #everything that isnt a helix is considered a coil...
-            elif (ss=='X'):
-                newString+=''
             else:
                 dssp_ss+="C"
 
